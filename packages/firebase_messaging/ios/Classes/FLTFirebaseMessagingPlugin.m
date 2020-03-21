@@ -249,6 +249,21 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
 }
 
 - (void)applicationDidBecomeActive:(UIApplication *)application {
+  // notify delivered messages to dart
+  if (_resumingFromBackground) {
+    dispatch_semaphore_t sema = dispatch_semaphore_create(0);
+
+    [[UNUserNotificationCenter currentNotificationCenter]  getDeliveredNotificationsWithCompletionHandler:^(NSArray<UNNotification *> *delivered) {
+        for (UNNotification* notification in delivered) {
+            NSDictionary *userInfo = notification.request.content.userInfo;
+            [_channel invokeMethod:@"onMessage" arguments:userInfo];
+        }
+        dispatch_semaphore_signal(sema);
+    }];
+
+    dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
+  }
+
   _resumingFromBackground = NO;
   // Clears push notifications from the notification center, with the
   // side effect of resetting the badge count. We need to clear notifications
