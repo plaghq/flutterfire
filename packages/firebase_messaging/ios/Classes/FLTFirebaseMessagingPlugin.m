@@ -29,6 +29,7 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
   FlutterMethodChannel *_channel;
   NSDictionary *_launchNotification;
   BOOL _resumingFromBackground;
+  NSMutableArray<NSDictionary*> *_silentPushesInBackground;
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
@@ -59,6 +60,7 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
       NSLog(@"Configured the default Firebase app %@.", [FIRApp defaultApp].name);
     }
     [FIRMessaging messaging].delegate = self;
+    _silentPushesInBackground = [NSMutableArray array];
   }
   return self;
 }
@@ -228,7 +230,13 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
 
 - (void)didReceiveRemoteNotification:(NSDictionary *)userInfo {
   if (_resumingFromBackground) {
-    [_channel invokeMethod:@"onResume" arguments:userInfo];
+    NSDictionary *aps = [userInfo objectForKey:@"aps"];
+    // サイレントプッシュなら貯めておく
+    if (aps && [[aps objectForKey:@"content-available"] intValue] == 1) {
+      [_silentPushesInBackground addObject:userInfo];
+    } else {
+      [_channel invokeMethod:@"onResume" arguments:userInfo];
+    }
   } else {
     [_channel invokeMethod:@"onMessage" arguments:userInfo];
   }
@@ -262,6 +270,12 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
     }];
 
     dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
+
+    // サイレントプッシュをdart側に通知
+    for (NSDictionary *userInfo in _silentPushesInBackground) {
+        [_channel invokeMethod:@"onMessage" arguments:userInfo];
+    }
+    [_silentPushesInBackground removeAllObjects];
   }
 
   _resumingFromBackground = NO;
@@ -285,7 +299,6 @@ static NSObject<FlutterPluginRegistrar> *_registrar;
 - (BOOL)application:(UIApplication *)application
     didReceiveRemoteNotification:(NSDictionary *)userInfo
           fetchCompletionHandler:(void (^)(UIBackgroundFetchResult result))completionHandler {
-            NSLog("Plag.application:didReceiveRemoteNotification:fetchCompletionHandler");
   [self didReceiveRemoteNotification:userInfo];
   completionHandler(UIBackgroundFetchResultNoData);
   return YES;
