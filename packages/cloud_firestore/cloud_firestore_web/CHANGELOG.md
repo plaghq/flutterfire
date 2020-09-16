@@ -1,3 +1,20 @@
+## 0.2.0+1
+
+* Fixed issue #3210 (`Query.orderBy(FieldPath.documentId)` throws exception).
+* Bump `cloud_firestore_platform_interface` dependency.
+
+## 0.2.0
+
+* See `cloud_firestore` plugin changelog.
+
+## 0.1.1+2
+
+* Ensure QueryWeb correctly encodes values passed in to `[start|end][At|Before](Document?)` methods.
+
+## 0.1.1+1
+
+* Ensure FieldValueFactoryWeb correctly encodes parameters for arrayRemove/arrayUnion FieldValues.
+
 ## 0.1.1
 
 * Support equality comparison of field values.
